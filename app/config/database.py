@@ -1,10 +1,10 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from app.config.settings import settings
 
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:paolo@localhost/inventarioCaoSys"
-
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# Usa la configuración centralizada
+engine = create_engine(settings.DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
