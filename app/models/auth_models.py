@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, UUID
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, UUID, CheckConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
@@ -22,10 +22,16 @@ class Usuario(Base):
     fecha_creacion = Column(DateTime(timezone=True), default=datetime.utcnow)
     activo = Column(Boolean, default=True)
 
+    __table_args__ = (
+        CheckConstraint("id_usuario != id_supervisor", name="chk_usuario_no_supervisor"),
+    )
+
     # Relaciones
     rol = relationship("Rol", back_populates="usuarios")
     sucursal = relationship("Sucursal", back_populates="usuarios")
     sesiones = relationship("SesionUsuario", back_populates="usuario")
+    kardex_registrados = relationship("Kardex", back_populates="usuario")
+    movimientos_registrados = relationship("Movimiento", back_populates="usuario")
 
 class SesionUsuario(Base):
     __tablename__ = "sesion_usuario"

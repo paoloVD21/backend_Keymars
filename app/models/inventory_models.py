@@ -90,30 +90,16 @@ class Proveedor(Base):
     # Relaciones
     productos = relationship("Producto", secondary=producto_proveedor, back_populates="proveedores")
 
-class Almacen(Base):
-    __tablename__ = "almacen"
-
-    id_almacen = Column(Integer, primary_key=True, index=True)
-    id_sucursal = Column(Integer, ForeignKey("sucursal.id_sucursal"), nullable=False)
-    nombre = Column(String(100), nullable=False)
-    codigo_almacen = Column(String(20), nullable=False)
-    fecha_creacion = Column(DateTime(timezone=True), default=datetime.utcnow)
-    activo = Column(Boolean, default=True)
-
-    # Relaciones
-    sucursal = relationship("Sucursal", back_populates="almacenes")
-    ubicaciones = relationship("Ubicacion", back_populates="almacen")
-
 class Ubicacion(Base):
     __tablename__ = "ubicacion"
 
     id_ubicacion = Column(Integer, primary_key=True, index=True)
-    id_almacen = Column(Integer, ForeignKey("almacen.id_almacen"), nullable=False)
     nombre = Column(String(100), nullable=False)
     codigo_ubicacion = Column(String(20), nullable=False)
     tipo_ubicacion = Column(String(20), default="ESTANTERIA")
     fecha_creacion = Column(DateTime(timezone=True), default=datetime.utcnow)
     activo = Column(Boolean, default=True)
+    id_sucursal = Column(Integer, ForeignKey("sucursal.id_sucursal"), nullable=False)
 
     # Check constraint para tipo_ubicacion
     __table_args__ = (
@@ -124,7 +110,7 @@ class Ubicacion(Base):
     )
 
     # Relaciones
-    almacen = relationship("Almacen", back_populates="ubicaciones")
+    sucursal = relationship("Sucursal", back_populates="ubicaciones")
     inventarios = relationship("Inventario", back_populates="ubicacion")
 
 class Inventario(Base):
@@ -190,7 +176,7 @@ class Kardex(Base):
     # Relaciones
     inventario = relationship("Inventario", back_populates="kardex")
     motivo = relationship("MotivoMovimiento", back_populates="kardex")
-    usuario = relationship("Usuario", backref="kardex_registrados")
+    usuario = relationship("Usuario", back_populates="kardex_registrados")
 
 class Movimiento(Base):
     __tablename__ = "movimiento"
@@ -215,8 +201,9 @@ class Movimiento(Base):
 
     # Relaciones
     motivo = relationship("MotivoMovimiento", back_populates="movimientos")
-    usuario = relationship("Usuario", backref="movimientos_registrados")
+    usuario = relationship("Usuario", back_populates="movimientos_registrados")
     detalles = relationship("MovimientoDetalle", back_populates="movimiento")
+    sucursal = relationship("Sucursal", back_populates="movimientos")
 
 class MovimientoDetalle(Base):
     __tablename__ = "movimiento_detalle"
