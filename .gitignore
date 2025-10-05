@@ -1,0 +1,17 @@
+# Archivos de entorno
+.env
+.env.development
+.env.production
+env/
+
+# Archivos de proyecto
+instrucciones.txt
+basededatos.sql
+
+# Archivos de editor
+.vscode/
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
