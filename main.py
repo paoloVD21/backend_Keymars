@@ -11,6 +11,8 @@ settings = Settings()
 
 # Configurar logging
 logging.basicConfig(level=settings.LOG_LEVEL)
+# Configurar nivel de logging específico para python_multipart
+logging.getLogger("python_multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Crear aplicación FastAPI
