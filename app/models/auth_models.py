@@ -3,6 +3,10 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
 from app.config.database import Base
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.organization_models import Sucursal, Rol
 
 class Usuario(Base):
     __tablename__ = "usuario"
@@ -23,18 +27,6 @@ class Usuario(Base):
     sucursal = relationship("Sucursal", back_populates="usuarios")
     sesiones = relationship("SesionUsuario", back_populates="usuario")
 
-class Rol(Base):
-    __tablename__ = "rol"
-
-    id_rol = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(50), unique=True, nullable=False)
-    es_supervisor = Column(Boolean, default=False)
-    activo = Column(Boolean, default=True)
-
-    # Relaciones
-    usuarios = relationship("Usuario", back_populates="rol")
-    permisos = relationship("Permiso", secondary="rol_permiso", back_populates="roles")
-
 class SesionUsuario(Base):
     __tablename__ = "sesion_usuario"
 
@@ -48,12 +40,3 @@ class SesionUsuario(Base):
     # Relaciones
     usuario = relationship("Usuario", back_populates="sesiones")
 
-class Permiso(Base):
-    __tablename__ = "permiso"
-
-    id_permiso = Column(Integer, primary_key=True, index=True)
-    modulo = Column(String(50))
-    activo = Column(Boolean, default=True)
-
-    # Relaciones
-    roles = relationship("Rol", secondary="rol_permiso", back_populates="permisos")

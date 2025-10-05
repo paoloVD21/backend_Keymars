@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from app.routes import auth
 from app.config.cors import setup_cors
 from app.config.settings import Settings
+from app.models import auth_models, organization_models  # Importar todos los modelos
 
 # Cargar configuración
 settings = Settings()
