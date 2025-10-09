@@ -1,7 +1,7 @@
 import logging
 import uvicorn
 from fastapi import FastAPI
-from app.routes import auth
+from app.routes import auth, user
 from app.config.cors import setup_cors
 from app.config.settings import Settings
 from app.models import auth_models, organization_models  # Importar todos los modelos
@@ -27,3 +27,4 @@ setup_cors(app)
 
 # Incluir routers
 app.include_router(auth.router, prefix="/api/auth")
+app.include_router(user.router)

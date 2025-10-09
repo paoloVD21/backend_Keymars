@@ -49,7 +49,7 @@ class Settings(BaseModel):
     
     # CORS
     CORS_ORIGINS: List[str] = Field(
-        default=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
+        default=os.getenv("CORS_ORIGINS", "http://localhost:5173").split(","),
         description="Orígenes permitidos para CORS"
     )
     CORS_ALLOW_CREDENTIALS: bool = Field(
