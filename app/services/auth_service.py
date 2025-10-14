@@ -4,8 +4,6 @@ from app.models.auth_models import Usuario, SesionUsuario
 from app.schemas import auth_schemas
 from app.utils.auth import verify_password, create_access_token, get_password_hash
 from fastapi import HTTPException
-import uuid
-import jwt
 
 class AuthService:
     @staticmethod

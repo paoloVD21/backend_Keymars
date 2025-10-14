@@ -11,7 +11,7 @@ router = APIRouter(
     tags=["users"]
 )
 
-@router.get("", response_model=user_schemas.UserList)
+@router.get("/listarUsuarios", response_model=user_schemas.UserList)
 async def get_users(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=10, ge=1, le=100),

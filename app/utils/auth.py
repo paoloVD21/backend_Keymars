@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import jwt
 from typing import Optional, Dict, Any
 import scrypt
 import secrets
 import base64
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Header
 from app.config.settings import settings
 
 # Configuración de seguridad desde settings centralizado
@@ -141,7 +141,7 @@ def create_access_token(
     """
     try:
         to_encode = data.copy()
-        expire = datetime.utcnow() + (
+        expire = datetime.now(timezone.utc) + (
             expires_delta if expires_delta 
             else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
@@ -149,7 +149,6 @@ def create_access_token(
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         
-        # PyJWT puede devolver bytes en algunas versiones
         return encoded_jwt if isinstance(encoded_jwt, str) else encoded_jwt.decode('utf-8')
     except Exception as e:
         raise HTTPException(
@@ -157,27 +156,19 @@ def create_access_token(
             detail="Error al generar el token de acceso"
         ) from e
 
-def verify_token(token: str) -> Optional[Dict[str, Any]]:
+def verify_token(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     """
-    Verifica y decodifica un token JWT.
-    
-    Args:
-        token (str): El token JWT a verificar
-        
-    Returns:
-        Optional[Dict[str, Any]]: Los datos decodificados del token si es válido,
-                                 None si no es válido
-        
-    Raises:
-        HTTPException: Si el token ha expirado o es inválido
+    Verifica y decodifica un token JWT proveniente del header Authorization.
     """
-    if not token:
+    if authorization is None or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token de acceso no proporcionado",
+            detail="Token de acceso no proporcionado o formato inválido",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
+
+    token = authorization.split(" ")[1]  # Extrae el JWT puro
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
