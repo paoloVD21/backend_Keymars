@@ -5,6 +5,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from app.config.database import get_db
 from app.utils.auth import verify_token
+from app.schemas.user_schemas import ToggleStatusRequest
 
 router = APIRouter(
     prefix="/api/users",
@@ -65,15 +66,16 @@ async def update_user(
 @router.patch("/{user_id}/status", response_model=user_schemas.UserResponse)
 async def toggle_user_status(
     user_id: int,
-    active: bool,
+    body: ToggleStatusRequest,
     db: Session = Depends(get_db),
     token: str = Depends(verify_token)
 ):
     """
     Activa o desactiva un usuario.
+    - **active**: True para activar, False para desactivar (enviar en el body)
     """
     return await UserController.toggle_user_status(
         user_id=user_id,
-        active=active,
+        active=body.active,
         db=db
     )

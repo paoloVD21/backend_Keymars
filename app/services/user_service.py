@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from app.models.auth_models import Usuario
 from app.schemas import user_schemas
 from app.utils.auth import get_password_hash
-from typing import List, Tuple, Optional, Sequence
+from typing import List, Tuple, Optional
 
 class UserService:
     @staticmethod

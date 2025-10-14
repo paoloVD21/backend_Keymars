@@ -44,3 +44,7 @@ class UserResponse(BaseModel):
 class UserList(BaseModel):
     total: int
     usuarios: list[UserResponse]
+
+    # Esquema para cambiar estado de usuario
+class ToggleStatusRequest(BaseModel):
+    active: bool
