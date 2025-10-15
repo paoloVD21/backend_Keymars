@@ -17,8 +17,8 @@ class UserController:
         """
         Obtiene la lista paginada de usuarios
         """
-        usuarios, total = UserService.get_users(
-            db=db,
+        service = UserService(db)
+        usuarios, total = service.get_users(
             skip=skip,
             limit=limit,
             search=search,
@@ -36,7 +36,8 @@ class UserController:
         """
         Crea un nuevo usuario
         """
-        return UserService.create_user(db=db, user_data=user_data)
+        service = UserService(db)
+        return service.create_user(user_data=user_data)
 
     @staticmethod
     async def update_user(
@@ -47,7 +48,8 @@ class UserController:
         """
         Actualiza los datos de un usuario
         """
-        return UserService.update_user(db=db, user_id=user_id, user_data=user_data)
+        service = UserService(db)
+        return service.update_user(user_id=user_id, user_data=user_data)
 
     @staticmethod
     async def toggle_user_status(
@@ -58,4 +60,5 @@ class UserController:
         """
         Activa o desactiva un usuario
         """
-        return UserService.toggle_user_status(db=db, user_id=user_id, active=active)
+        service = UserService(db)
+        return service.toggle_user_status(user_id=user_id, active=active)

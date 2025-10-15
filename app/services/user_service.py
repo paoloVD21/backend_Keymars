@@ -7,9 +7,11 @@ from app.utils.auth import get_password_hash
 from typing import List, Tuple, Optional
 
 class UserService:
-    @staticmethod
+    def __init__(self, db: Session):
+        self.db = db
+        
     def get_users(
-        db: Session,
+        self,
         skip: int = 0,
         limit: int = 10,
         search: Optional[str] = None,
@@ -18,7 +20,7 @@ class UserService:
         """
         Obtiene la lista de usuarios con filtros opcionales
         """
-        query = db.query(Usuario)
+        query = self.db.query(Usuario)
         
         # Aplicar filtro de búsqueda si existe
         if search:
@@ -41,13 +43,12 @@ class UserService:
         
         return usuarios, total
 
-    @staticmethod
-    def create_user(db: Session, user_data: user_schemas.UserCreate) -> Usuario:
+    def create_user(self, user_data: user_schemas.UserCreate) -> Usuario:
         """
         Crea un nuevo usuario
         """
         # Verificar si el email ya existe
-        if db.query(Usuario).filter(Usuario.email == user_data.email).first():
+        if self.db.query(Usuario).filter(Usuario.email == user_data.email).first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El email ya está registrado"
@@ -55,7 +56,7 @@ class UserService:
             
         # Verificar si el supervisor existe
         if user_data.id_supervisor:
-            supervisor = db.query(Usuario).filter(
+            supervisor = self.db.query(Usuario).filter(
                 Usuario.id_usuario == user_data.id_supervisor
             ).first()
             if not supervisor:
@@ -75,20 +76,19 @@ class UserService:
         )
         
         try:
-            db.add(db_user)
-            db.commit()
-            db.refresh(db_user)
+            self.db.add(db_user)
+            self.db.commit()
+            self.db.refresh(db_user)
             return db_user
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error al crear el usuario"
             ) from e
 
-    @staticmethod
     def update_user(
-        db: Session,
+        self,
         user_id: int,
         user_data: user_schemas.UserUpdate
     ) -> Usuario:
@@ -96,7 +96,7 @@ class UserService:
         Actualiza los datos de un usuario
         """
         # Buscar el usuario
-        db_user = db.query(Usuario).filter(Usuario.id_usuario == user_id).first()
+        db_user = self.db.query(Usuario).filter(Usuario.id_usuario == user_id).first()
         if not db_user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -105,7 +105,7 @@ class UserService:
             
         # Verificar si el nuevo email ya existe
         if user_data.email and user_data.email != db_user.email:
-            if db.query(Usuario).filter(Usuario.email == user_data.email).first():
+            if self.db.query(Usuario).filter(Usuario.email == user_data.email).first():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="El email ya está registrado"
@@ -123,7 +123,7 @@ class UserService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Un usuario no puede ser su propio supervisor"
                 )
-            supervisor = db.query(Usuario).filter(
+            supervisor = self.db.query(Usuario).filter(
                 Usuario.id_usuario == update_data['id_supervisor']
             ).first()
             if not supervisor:
@@ -137,23 +137,22 @@ class UserService:
             for key, value in update_data.items():
                 setattr(db_user, key, value)
             
-            db.commit()
-            db.refresh(db_user)
+            self.db.commit()
+            self.db.refresh(db_user)
             return db_user
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error al actualizar el usuario"
             ) from e
 
-    @staticmethod
-    def toggle_user_status(db: Session, user_id: int, active: bool) -> Usuario:
+    def toggle_user_status(self, user_id: int, active: bool) -> Usuario:
         """
         Activa o desactiva un usuario
         """
         # Buscar el usuario
-        db_user = db.query(Usuario).filter(Usuario.id_usuario == user_id).first()
+        db_user = self.db.query(Usuario).filter(Usuario.id_usuario == user_id).first()
         if not db_user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -162,17 +161,17 @@ class UserService:
             
         try:
             # Actualizar estado usando update()
-            db.query(Usuario).filter(
+            self.db.query(Usuario).filter(
                 Usuario.id_usuario == user_id
             ).update(
                 {"activo": active},
                 synchronize_session='fetch'
             )
-            db.commit()
-            db.refresh(db_user)
+            self.db.commit()
+            self.db.refresh(db_user)
             return db_user
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error al actualizar el estado del usuario"

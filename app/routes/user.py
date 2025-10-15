@@ -36,7 +36,7 @@ async def get_users(
         db=db
     )
 
-@router.post("", response_model=user_schemas.UserResponse)
+@router.post("/crearUsuario", response_model=user_schemas.UserResponse)
 async def create_user(
     user_data: user_schemas.UserCreate,
     db: Session = Depends(get_db),
