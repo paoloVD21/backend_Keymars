@@ -74,7 +74,7 @@ def update_supplier(
     return controller.update_supplier(supplier_id, supplier_data, db)
 
 @router.patch("/cambiarEstadoProveedor/{supplier_id}", response_model=supplier_schemas.SupplierResponse)
-def toggle_supplier_status(
+async def toggle_supplier_status(
     supplier_id: int,
     db: Session = Depends(get_db),
     token: str = Depends(verify_token)
@@ -83,4 +83,4 @@ def toggle_supplier_status(
     Activa o desactiva un proveedor.
     """
     controller = SupplierController()
-    return controller.toggle_supplier_status(supplier_id, db)
+    return await controller.toggle_supplier_status(supplier_id, db)
