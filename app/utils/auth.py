@@ -156,6 +156,18 @@ def create_access_token(
             detail="Error al generar el token de acceso"
         ) from e
 
+async def get_current_active_user(authorization: Optional[str] = Header(None)):
+    """
+    Obtiene el usuario activo actual basado en el token JWT.
+    """
+    payload = verify_token(authorization)
+    if not payload.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuario inactivo"
+        )
+    return payload
+
 def verify_token(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     """
     Verifica y decodifica un token JWT proveniente del header Authorization.

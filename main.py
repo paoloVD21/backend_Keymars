@@ -2,10 +2,10 @@ import logging
 import uvicorn
 from fastapi import FastAPI, Depends
 from fastapi.security import OAuth2PasswordBearer
-from app.routes import auth, user, organization
+from app.routes import auth, user, organization, supplier
 from app.config.cors import setup_cors
 from app.config.settings import Settings
-from app.models import auth_models, organization_models  # Importar todos los modelos
+from app.models import auth_models, organization_models, inventory_models  # Importar todos los modelos
 from app.utils.auth import verify_token
 
 # Cargar configuración
@@ -28,6 +28,7 @@ app = FastAPI(
     openapi_tags=[
         {"name": "auth", "description": "Operaciones de autenticación"},
         {"name": "organization", "description": "Operaciones de organización"},
+        {"name": "suppliers", "description": "Operaciones de proveedores"},
     ]
 )
 
@@ -41,3 +42,4 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(user.router)
 app.include_router(organization.router, prefix="/api")
+app.include_router(supplier.router)

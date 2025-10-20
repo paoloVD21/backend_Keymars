@@ -37,7 +37,7 @@ class UserController:
         Crea un nuevo usuario
         """
         service = UserService(db)
-        return service.create_user(user_data=user_data)
+        return await service.create_user(user_data=user_data)
 
     @staticmethod
     async def update_user(
