@@ -61,7 +61,7 @@ def get_supplier(
     return controller.get_supplier(supplier_id, db)
 
 @router.put("/actualizarProveedor/{supplier_id}", response_model=supplier_schemas.SupplierResponse)
-def update_supplier(
+async def update_supplier(
     supplier_id: int,
     supplier_data: supplier_schemas.SupplierUpdate,
     db: Session = Depends(get_db),
@@ -71,7 +71,7 @@ def update_supplier(
     Actualiza los datos de un proveedor existente.
     """
     controller = SupplierController()
-    return controller.update_supplier(supplier_id, supplier_data, db)
+    return await controller.update_supplier(supplier_id, supplier_data, db)
 
 @router.patch("/cambiarEstadoProveedor/{supplier_id}", response_model=supplier_schemas.SupplierResponse)
 async def toggle_supplier_status(
