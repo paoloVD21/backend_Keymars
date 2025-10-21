@@ -6,6 +6,20 @@ from app.schemas import supplier_schemas
 from typing import List, Optional
 
 class SupplierController:
+    def __init__(self, db: Session):
+        self.db = db
+        self.service = SupplierService(db)
+
+    def get_proveedores_activos(self) -> List[supplier_schemas.SupplierModal]:
+        """
+        Endpoint para obtener la lista de proveedores activos (solo id y nombre)
+        """
+        proveedores = SupplierService.get_proveedores_activos(self.db)
+        return [supplier_schemas.SupplierModal.model_validate({
+            'id_proveedor': proveedor.id_proveedor,
+            'nombre': proveedor.nombre
+        }) for proveedor in proveedores]
+
     @staticmethod
     async def get_suppliers(
         skip: int = Query(default=0, ge=0),

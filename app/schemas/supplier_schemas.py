@@ -28,3 +28,10 @@ class SupplierList(BaseModel):
 
     class Config:
         from_attributes = True
+
+class SupplierModal(BaseModel):
+    id_proveedor: int
+    nombre: str
+
+    class Config:
+        from_attributes = True

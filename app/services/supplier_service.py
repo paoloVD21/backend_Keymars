@@ -8,6 +8,13 @@ class SupplierService:
     def __init__(self, db: Session):
         self.db = db
 
+    @staticmethod
+    def get_proveedores_activos(db: Session) -> List[Proveedor]:
+        """
+        Obtiene todos los proveedores activos sin paginación
+        """
+        return db.query(Proveedor).filter(Proveedor.activo == True).all()
+
     def get_suppliers(
         self,
         skip: int = 0,

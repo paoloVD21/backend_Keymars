@@ -11,6 +11,17 @@ router = APIRouter(
     tags=["suppliers"]
 )
 
+@router.get("/listarModalProveedores", response_model=List[supplier_schemas.SupplierModal])
+def get_proveedores_activos(
+    db: Session = Depends(get_db),
+    token: str = Depends(verify_token)
+):
+    """
+    Obtiene la lista de proveedores activos para selector/modal (solo id y nombre)
+    """
+    controller = SupplierController(db)
+    return controller.get_proveedores_activos()
+
 @router.get("/ListarProveedores", response_model=supplier_schemas.SupplierList)
 async def get_suppliers(
     skip: int = Query(default=0, ge=0),
@@ -57,7 +68,7 @@ def get_supplier(
     """
     Obtiene los detalles de un proveedor específico.
     """
-    controller = SupplierController()
+    controller = SupplierController(db)
     return controller.get_supplier(supplier_id, db)
 
 @router.put("/actualizarProveedor/{supplier_id}", response_model=supplier_schemas.SupplierResponse)
@@ -70,7 +81,7 @@ async def update_supplier(
     """
     Actualiza los datos de un proveedor existente.
     """
-    controller = SupplierController()
+    controller = SupplierController(db)
     return await controller.update_supplier(supplier_id, supplier_data, db)
 
 @router.patch("/cambiarEstadoProveedor/{supplier_id}", response_model=supplier_schemas.SupplierResponse)
@@ -82,5 +93,5 @@ async def toggle_supplier_status(
     """
     Activa o desactiva un proveedor.
     """
-    controller = SupplierController()
+    controller = SupplierController(db)
     return await controller.toggle_supplier_status(supplier_id, db)
