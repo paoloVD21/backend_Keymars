@@ -2,7 +2,7 @@ import logging
 import uvicorn
 from fastapi import FastAPI, Depends
 from fastapi.security import OAuth2PasswordBearer
-from app.routes import auth, user, organization, supplier, product
+from app.routes import auth, user, organization, supplier, product, category, brand
 from app.config.cors import setup_cors
 from app.config.settings import Settings
 from app.models import auth_models, organization_models, inventory_models  # Importar todos los modelos
@@ -44,3 +44,5 @@ app.include_router(user.router)
 app.include_router(organization.router, prefix="/api")
 app.include_router(supplier.router)
 app.include_router(product.router)
+app.include_router(category.router)
+app.include_router(brand.router)
