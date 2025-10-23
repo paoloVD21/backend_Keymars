@@ -13,13 +13,13 @@ class ProductBase(BaseModel):
 
 class ProductCreate(ProductBase):
     id_proveedor: int
-    stock_minimo: Decimal = Field(..., ge=Decimal('0'))
     precio: Decimal = Field(..., ge=Decimal('0'))
+    stock_minimo: Decimal = Field(default=Decimal('0'))
 
 class ProductUpdate(ProductBase):
     id_proveedor: int
-    stock_minimo: Decimal = Field(..., ge=Decimal('0'))
     precio: Decimal = Field(..., ge=Decimal('0'))
+    stock_minimo: Decimal = Field(default=Decimal('0'))
 
 class ProductResponse(ProductBase):
     id_producto: int
@@ -27,7 +27,7 @@ class ProductResponse(ProductBase):
     fecha_creacion: datetime
     categoria_nombre: str
     marca_nombre: Optional[str] = None
-    proveedor_nombre: str
+    proveedor_nombre: Optional[str] = None
     stock_actual: Decimal = Field(default=Decimal('0'))
     stock_minimo: Decimal = Field(default=Decimal('0'))
     precio: Decimal = Field(default=Decimal('0'))
