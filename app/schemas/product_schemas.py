@@ -17,7 +17,7 @@ class ProductCreate(ProductBase):
     stock_minimo: Decimal = Field(default=Decimal('0'))
 
 class ProductUpdate(ProductBase):
-    id_proveedor: int
+    id_proveedor: Optional[int] = None
     precio: Decimal = Field(..., ge=Decimal('0'))
     stock_minimo: Decimal = Field(default=Decimal('0'))
 

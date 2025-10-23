@@ -8,14 +8,7 @@ if TYPE_CHECKING:
     from app.models.auth_models import Usuario
     from app.models.organization_models import Sucursal
 
-# Tabla intermedia para la relación many-to-many entre Producto y Proveedor
-producto_proveedor = Table(
-    "producto_proveedor",
-    Base.metadata,
-    Column("id_producto", Integer, ForeignKey("producto.id_producto"), primary_key=True),
-    Column("id_proveedor", Integer, ForeignKey("proveedor.id_proveedor"), primary_key=True)
-)
-
+# Ya no es necesaria la tabla intermedia producto_proveedor ya que ahora es una relación one-to-many
 class Categoria(Base):
     __tablename__ = "categoria"
 
@@ -45,6 +38,7 @@ class Producto(Base):
     descripcion = Column(Text)
     id_categoria = Column(Integer, ForeignKey("categoria.id_categoria"))
     id_marca = Column(Integer, ForeignKey("marca.id_marca"))
+    id_proveedor = Column(Integer, ForeignKey("proveedor.id_proveedor"), nullable=False)
     unidad_medida = Column(String(10), default="UNIDAD")
     fecha_creacion = Column(DateTime(timezone=True), default=datetime.utcnow)
     activo = Column(Boolean, default=True)
@@ -61,7 +55,7 @@ class Producto(Base):
     categoria = relationship("Categoria", back_populates="productos")
     marca = relationship("Marca", back_populates="productos")
     precios = relationship("PrecioProducto", back_populates="producto")
-    proveedores = relationship("Proveedor", secondary=producto_proveedor, back_populates="productos")
+    proveedor = relationship("Proveedor", back_populates="productos")  # Relación directa one-to-many
     inventarios = relationship("Inventario", back_populates="producto")
 
 class PrecioProducto(Base):
@@ -87,8 +81,8 @@ class Proveedor(Base):
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime(timezone=True), default=datetime.utcnow)
 
-    # Relaciones
-    productos = relationship("Producto", secondary=producto_proveedor, back_populates="proveedores")
+    # Relaciones - Relación one-to-many con Producto
+    productos = relationship("Producto", back_populates="proveedor")
 
 class Ubicacion(Base):
     __tablename__ = "ubicacion"

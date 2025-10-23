@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.inventory_models import (
     Producto, Categoria, Marca, Proveedor, Inventario, PrecioProducto,
-    producto_proveedor
+    Ubicacion
 )
 from app.schemas import product_schemas
 from fastapi import HTTPException
@@ -21,12 +21,11 @@ class ProductService:
         search: Optional[str] = None,
         activo: Optional[bool] = None
     ) -> dict:
-        # Primero obtenemos los IDs de los productos de manera distinta
+        # Consulta actualizada sin la tabla intermedia producto_proveedor
         product_ids_query = (
             self.db.query(Producto.id_producto)
             .join(Categoria)
             .outerjoin(Marca)
-            .outerjoin(producto_proveedor)
             .outerjoin(Proveedor)
             .outerjoin(Inventario)
         )
@@ -52,7 +51,7 @@ class ProductService:
         # Obtener total de registros únicos
         total = product_ids_query.distinct().count()
         
-        # Ahora obtenemos los detalles completos solo para los IDs seleccionados
+            # Ahora obtenemos los detalles completos solo para los IDs seleccionados
         results = []
         for (pid,) in product_ids:
             result = (
@@ -61,13 +60,19 @@ class ProductService:
                     Categoria.nombre.label('categoria_nombre'),
                     Marca.nombre.label('marca_nombre'),
                     Proveedor.nombre.label('proveedor_nombre'),
-                    Inventario.cantidad_actual
+                    Inventario.cantidad_actual,
+                    Inventario.stock_minimo,
+                    PrecioProducto.precio
                 )
                 .join(Categoria, Producto.id_categoria == Categoria.id_categoria)
                 .outerjoin(Marca, Producto.id_marca == Marca.id_marca)
-                .outerjoin(producto_proveedor, Producto.id_producto == producto_proveedor.c.id_producto)
-                .outerjoin(Proveedor, producto_proveedor.c.id_proveedor == Proveedor.id_proveedor)
+                .outerjoin(Proveedor, Producto.id_proveedor == Proveedor.id_proveedor)
                 .outerjoin(Inventario, Producto.id_producto == Inventario.id_producto)
+                .outerjoin(
+                    PrecioProducto,
+                    (Producto.id_producto == PrecioProducto.id_producto) &
+                    (PrecioProducto.fecha_fin.is_(None))
+                )
                 .filter(Producto.id_producto == pid)
                 .first()
             )
@@ -78,21 +83,32 @@ class ProductService:
         products = []
         for result in results:
             if result and result[0]:  # Verificamos que result y su primer elemento no sean None
-                product_dict = result[0].__dict__
-                product_dict.update({
-                    'categoria_nombre': result[1],
+                product = result[0]
+                product_dict = {
+                    'id_producto': product.id_producto,
+                    'codigo_producto': product.codigo_producto,
+                    'nombre': product.nombre,
+                    'descripcion': product.descripcion,
+                    'id_categoria': product.id_categoria,
+                    'id_marca': product.id_marca,
+                    'unidad_medida': product.unidad_medida,
+                    'activo': product.activo,
+                    'fecha_creacion': product.fecha_creacion,
+                    'categoria_nombre': result[1] or "",  # Asegurarnos de que nunca sea None
                     'marca_nombre': result[2],
-                    'proveedor_nombre': result[3] if result[3] else None,
-                    'stock_actual': result[4] if result[4] is not None else 0
-                })
+                    'proveedor_nombre': result[3],
+                    'stock_actual': Decimal(str(result[4])) if result[4] is not None else Decimal('0'),
+                    'stock_minimo': Decimal(str(result[5])) if result[5] is not None else Decimal('0'),
+                    'precio': Decimal(str(result[6])) if result[6] is not None else Decimal('0')
+                }
                 products.append(product_dict)
-
+                
         return {
             "total": total,
             "items": products
         }
 
-    def create_product(self, product: product_schemas.ProductCreate) -> Producto:
+    def create_product(self, product: product_schemas.ProductCreate) -> dict:
         # Verificar que existe la categoría
         if not self.db.query(Categoria).filter(Categoria.id_categoria == product.id_categoria).first():
             raise HTTPException(status_code=400, detail="Categoría no encontrada")
@@ -109,38 +125,104 @@ class ProductService:
         if self.db.query(Producto).filter(Producto.codigo_producto == product.codigo_producto).first():
             raise HTTPException(status_code=400, detail="El código de producto ya existe")
 
-        # Extraer campos que van en otras tablas
-        proveedor_id = product.id_proveedor
-        precio = product.precio
-        product_data = product.model_dump(exclude={'id_proveedor', 'precio', 'stock_minimo'})
+        # Preparar los datos del producto
+        product_data = product.model_dump(
+            exclude={'precio', 'stock_minimo'}
+        )
         
-        # Crear el producto
+        # Obtener el nombre de la categoría
+        categoria = self.db.query(Categoria).filter(Categoria.id_categoria == product.id_categoria).first()
+        if not categoria:
+            raise HTTPException(status_code=400, detail="Categoría no encontrada")
+
+        # Obtener marca si se proporciona
+        marca_nombre = None
+        if product.id_marca is not None:
+            marca = self.db.query(Marca).filter(Marca.id_marca == product.id_marca).first()
+            marca_nombre = marca.nombre if marca else None
+
+        # Obtener el proveedor
+        proveedor = self.db.query(Proveedor).filter(Proveedor.id_proveedor == product.id_proveedor).first()
+        if not proveedor:
+            raise HTTPException(status_code=400, detail="Proveedor no encontrado")
+        
+        # Crear el producto - id_proveedor ya está incluido en product_data
         db_product = Producto(**product_data)
         self.db.add(db_product)
         self.db.commit()
         self.db.refresh(db_product)
 
-        # Asociar el proveedor al producto
-        proveedor = self.db.query(Proveedor).filter(Proveedor.id_proveedor == proveedor_id).first()
-        db_product.proveedores.append(proveedor)
-
         # Crear precio inicial
         precio_producto = PrecioProducto(
             id_producto=db_product.id_producto,
-            precio=precio
+            precio=product.precio
         )
         self.db.add(precio_producto)
 
         # Crear registro inicial en inventario
+        # Buscar una ubicación por defecto (primera ubicación activa)
+        ubicacion_default = self.db.query(Ubicacion).filter(Ubicacion.activo == True).first()
+        if not ubicacion_default:
+            raise HTTPException(status_code=400, detail="No hay ubicaciones disponibles para el inventario")
+                
         inventario = Inventario(
             id_producto=db_product.id_producto,
+            id_ubicacion=ubicacion_default.id_ubicacion,
             cantidad_actual=0,
             stock_minimo=product.stock_minimo
         )
         self.db.add(inventario)
+            
         self.db.commit()
+        self.db.refresh(db_product)
 
-        return db_product
+        # Construir respuesta con todos los campos necesarios
+        result = self.db.query(
+            Producto,
+            Categoria.nombre.label('categoria_nombre'),
+            Marca.nombre.label('marca_nombre'),
+            Proveedor.nombre.label('proveedor_nombre'),
+            Inventario.cantidad_actual,
+            Inventario.stock_minimo,
+            PrecioProducto.precio
+        ).join(
+            Categoria, Producto.id_categoria == Categoria.id_categoria
+        ).outerjoin(
+            Marca, Producto.id_marca == Marca.id_marca
+        ).outerjoin(
+            Proveedor, Producto.id_proveedor == Proveedor.id_proveedor
+        ).outerjoin(
+            Inventario, Producto.id_producto == Inventario.id_producto
+        ).outerjoin(
+            PrecioProducto,
+            (Producto.id_producto == PrecioProducto.id_producto) &
+            (PrecioProducto.fecha_fin.is_(None))
+        ).filter(
+            Producto.id_producto == db_product.id_producto
+        ).first()
+
+        if not result:
+            raise HTTPException(status_code=404, detail="Error al crear el producto")
+
+        response_dict = {
+            'id_producto': db_product.id_producto,
+            'codigo_producto': db_product.codigo_producto,
+            'nombre': db_product.nombre,
+            'descripcion': db_product.descripcion,
+            'id_categoria': db_product.id_categoria,
+            'id_marca': db_product.id_marca,
+            'unidad_medida': db_product.unidad_medida,
+            'activo': db_product.activo,
+            'fecha_creacion': db_product.fecha_creacion,
+            'categoria_nombre': result[1] or "",
+            'marca_nombre': result[2],
+            'proveedor_nombre': result[3],
+            'stock_actual': Decimal('0'),
+            'stock_minimo': Decimal(str(product.stock_minimo)),
+            'precio': Decimal(str(product.precio))
+        }
+
+        return response_dict
 
     def get_product_by_id(self, product_id: int) -> dict:
         """
@@ -158,8 +240,7 @@ class ProductService:
             )
             .join(Categoria, Producto.id_categoria == Categoria.id_categoria)
             .outerjoin(Marca, Producto.id_marca == Marca.id_marca)
-            .join(producto_proveedor, Producto.id_producto == producto_proveedor.c.id_producto)
-            .join(Proveedor, producto_proveedor.c.id_proveedor == Proveedor.id_proveedor)
+            .outerjoin(Proveedor, Producto.id_proveedor == Proveedor.id_proveedor)
             .outerjoin(Inventario, Producto.id_producto == Inventario.id_producto)
             .outerjoin(
                 PrecioProducto,
@@ -173,15 +254,24 @@ class ProductService:
         if not result:
             raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-        product_dict = result[0].__dict__
-        product_dict.update({
-            'categoria_nombre': result[1],
+        product = result[0]
+        product_dict = {
+            'id_producto': product.id_producto,
+            'codigo_producto': product.codigo_producto,
+            'nombre': product.nombre,
+            'descripcion': product.descripcion,
+            'id_categoria': product.id_categoria,
+            'id_marca': product.id_marca,
+            'unidad_medida': product.unidad_medida,
+            'activo': product.activo,
+            'fecha_creacion': product.fecha_creacion,
+            'categoria_nombre': result[1] or "",  # Asegurarnos de que nunca sea None
             'marca_nombre': result[2],
             'proveedor_nombre': result[3],
-            'stock_actual': result[4] or Decimal('0'),
-            'stock_minimo': result[5] or Decimal('0'),
-            'precio': result[6] or Decimal('0')
-        })
+            'stock_actual': Decimal(str(result[4])) if result[4] is not None else Decimal('0'),
+            'stock_minimo': Decimal(str(result[5])) if result[5] is not None else Decimal('0'),
+            'precio': Decimal(str(result[6])) if result[6] is not None else Decimal('0')
+        }
 
         return product_dict
 
@@ -199,10 +289,11 @@ class ProductService:
         if product_data.id_marca and not self.db.query(Marca).filter(Marca.id_marca == product_data.id_marca).first():
             raise HTTPException(status_code=400, detail="Marca no encontrada")
         
-        # Verificar que existe el proveedor
-        proveedor = self.db.query(Proveedor).filter(Proveedor.id_proveedor == product_data.id_proveedor).first()
-        if not proveedor:
-            raise HTTPException(status_code=400, detail="Proveedor no encontrado")
+        # Verificar que existe el proveedor solo si se está actualizando
+        if product_data.id_proveedor:
+            proveedor = self.db.query(Proveedor).filter(Proveedor.id_proveedor == product_data.id_proveedor).first()
+            if not proveedor:
+                raise HTTPException(status_code=400, detail="Proveedor no encontrado")
 
         # Verificar que el código de producto no exista (si se está cambiando)
         if (product_data.codigo_producto != product.codigo_producto and
@@ -210,16 +301,20 @@ class ProductService:
             raise HTTPException(status_code=400, detail="El código de producto ya existe")
 
         # Extraer campos que van en otras tablas
-        proveedor_id = product_data.id_proveedor
-        precio = product_data.precio
-        update_data = product_data.model_dump(exclude={'id_proveedor', 'precio', 'stock_minimo'})
+        update_data = product_data.model_dump(exclude={'precio_info', 'inventario_info'})
 
+        # Si no se proporciona id_proveedor, mantener el existente
+        if not update_data.get('id_proveedor'):
+            update_data['id_proveedor'] = product.id_proveedor
+
+        # Lista de campos que pertenecen al modelo Producto
+        campos_producto = ['codigo_producto', 'nombre', 'descripcion', 'id_categoria', 
+                         'id_marca', 'id_proveedor', 'unidad_medida', 'activo']
+        
         # Actualizar campos básicos del producto
         for key, value in update_data.items():
-            setattr(product, key, value)
-
-        # Actualizar la relación con el proveedor
-        product.proveedores = [proveedor]
+            if key in campos_producto:  # Solo procesar campos que existen en el modelo
+                setattr(product, key, value)
 
         # Actualizar precio si ha cambiado
         current_price = (
@@ -229,7 +324,7 @@ class ProductService:
             .scalar()
         )
         
-        if current_price != precio:
+        if current_price != product_data.precio:
             # Cerrar precio actual
             self.db.query(PrecioProducto).filter(
                 PrecioProducto.id_producto == product_id,
@@ -239,15 +334,37 @@ class ProductService:
             # Crear nuevo precio
             nuevo_precio = PrecioProducto(
                 id_producto=product_id,
-                precio=precio
+                precio=product_data.precio
             )
             self.db.add(nuevo_precio)
 
-        # Actualizar stock_minimo en inventario
-        self.db.query(Inventario).filter(
+        # Actualizar stock_minimo en el inventario existente
+        # Buscar el registro de inventario
+        inventario = self.db.query(Inventario).filter(
             Inventario.id_producto == product_id
-        ).update({"stock_minimo": product_data.stock_minimo})
+        ).first()
 
+        if inventario:
+            # Actualizar stock mínimo usando update
+            self.db.query(Inventario).filter(
+                Inventario.id_producto == product_id
+            ).update({
+                'stock_minimo': product_data.stock_minimo
+            }, synchronize_session='fetch')
+        else:
+            # Si no existe inventario, crear uno nuevo con ubicación por defecto
+            ubicacion_default = self.db.query(Ubicacion).filter(Ubicacion.activo == True).first()
+            if not ubicacion_default:
+                raise HTTPException(status_code=400, detail="No hay ubicaciones disponibles para el inventario")
+            
+            inventario = Inventario(
+                id_producto=product_id,
+                id_ubicacion=ubicacion_default.id_ubicacion,
+                cantidad_actual=0,
+                stock_minimo=product_data.stock_minimo
+            )
+            self.db.add(inventario)
+            
         self.db.commit()
         self.db.refresh(product)
 
