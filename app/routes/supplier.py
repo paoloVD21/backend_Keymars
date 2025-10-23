@@ -10,7 +10,7 @@ router = APIRouter(
     prefix="/api/suppliers",
     tags=["suppliers"]
 )
-
+    
 @router.get("/listarModalProveedores", response_model=List[supplier_schemas.SupplierModal])
 def get_proveedores_activos(
     db: Session = Depends(get_db),

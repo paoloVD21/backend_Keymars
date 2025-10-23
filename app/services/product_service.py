@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy.orm import Session
 from app.models.inventory_models import (
     Producto, Categoria, Marca, Proveedor, Inventario, PrecioProducto,
@@ -5,6 +6,9 @@ from app.models.inventory_models import (
 )
 from app.schemas import product_schemas
 from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 from typing import Optional, List
 from sqlalchemy import or_
 from decimal import Decimal
@@ -276,13 +280,20 @@ class ProductService:
         return product_dict
 
     def update_product(self, product_id: int, product_data: product_schemas.ProductUpdate) -> dict:
+        logger.debug(f"Iniciando actualización del producto {product_id}")
+        logger.debug(f"Datos recibidos: {product_data.model_dump()}")
+
         # Verificar que existe el producto
         product = self.db.query(Producto).filter(Producto.id_producto == product_id).first()
         if not product:
+            logger.error(f"Producto {product_id} no encontrado")
             raise HTTPException(status_code=404, detail="Producto no encontrado")
+        
+        logger.debug(f"Producto actual en DB: {product.__dict__}")
         
         # Verificar que existe la categoría
         if not self.db.query(Categoria).filter(Categoria.id_categoria == product_data.id_categoria).first():
+            logger.error(f"Categoría {product_data.id_categoria} no encontrada")
             raise HTTPException(status_code=400, detail="Categoría no encontrada")
         
         # Verificar que existe la marca si se proporciona
@@ -300,21 +311,27 @@ class ProductService:
             self.db.query(Producto).filter(Producto.codigo_producto == product_data.codigo_producto).first()):
             raise HTTPException(status_code=400, detail="El código de producto ya existe")
 
-        # Extraer campos que van en otras tablas
+        # Extraer campos que van en otras tablas, manteniendo id_proveedor
         update_data = product_data.model_dump(exclude={'precio_info', 'inventario_info'})
+        logger.debug(f"Datos para actualizar después de model_dump: {update_data}")
 
         # Si no se proporciona id_proveedor, mantener el existente
         if not update_data.get('id_proveedor'):
+            logger.debug(f"No se proporcionó id_proveedor, manteniendo el existente: {product.id_proveedor}")
             update_data['id_proveedor'] = product.id_proveedor
+        else:
+            logger.debug(f"Nuevo id_proveedor proporcionado: {update_data['id_proveedor']}")
 
-        # Lista de campos que pertenecen al modelo Producto
-        campos_producto = ['codigo_producto', 'nombre', 'descripcion', 'id_categoria', 
-                         'id_marca', 'id_proveedor', 'unidad_medida', 'activo']
-        
         # Actualizar campos básicos del producto
+        logger.debug("Actualizando campos del producto:")
         for key, value in update_data.items():
-            if key in campos_producto:  # Solo procesar campos que existen en el modelo
+            try:
+                old_value = getattr(product, key)
+                logger.debug(f"  {key}: {old_value} -> {value}")
                 setattr(product, key, value)
+            except AttributeError:
+                logger.debug(f"  {key}: no es un atributo directo del producto, valor nuevo: {value}")
+                continue
 
         # Actualizar precio si ha cambiado
         current_price = (
