@@ -40,6 +40,7 @@ class Producto(Base):
     id_marca = Column(Integer, ForeignKey("marca.id_marca"))
     id_proveedor = Column(Integer, ForeignKey("proveedor.id_proveedor"), nullable=False)
     unidad_medida = Column(String(10), default="UNIDAD")
+    precio = Column(Numeric(10, 2), nullable=False, default=0)
     fecha_creacion = Column(DateTime(timezone=True), default=datetime.utcnow)
     activo = Column(Boolean, default=True)
 
@@ -54,21 +55,8 @@ class Producto(Base):
     # Relaciones
     categoria = relationship("Categoria", back_populates="productos")
     marca = relationship("Marca", back_populates="productos")
-    precios = relationship("PrecioProducto", back_populates="producto")
     proveedor = relationship("Proveedor", back_populates="productos")  # Relación directa one-to-many
     inventarios = relationship("Inventario", back_populates="producto")
-
-class PrecioProducto(Base):
-    __tablename__ = "precio_producto"
-
-    id_precio = Column(Integer, primary_key=True, index=True)
-    id_producto = Column(Integer, ForeignKey("producto.id_producto"), nullable=False)
-    precio = Column(Numeric(10, 2), nullable=False)
-    fecha_inicio = Column(DateTime(timezone=True), default=datetime.utcnow)
-    fecha_fin = Column(DateTime(timezone=True))
-
-    # Relaciones
-    producto = relationship("Producto", back_populates="precios")
 
 class Proveedor(Base):
     __tablename__ = "proveedor"

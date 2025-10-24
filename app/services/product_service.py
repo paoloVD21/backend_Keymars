@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.inventory_models import (
-    Producto, Categoria, Marca, Proveedor, Inventario, PrecioProducto,
-    Ubicacion
+    Producto, Categoria, Marca, Proveedor, Inventario, Ubicacion
 )
 from app.schemas import product_schemas
 from fastapi import HTTPException
@@ -62,17 +61,12 @@ class ProductService:
                     Proveedor.nombre.label('proveedor_nombre'),
                     Inventario.cantidad_actual,
                     Inventario.stock_minimo,
-                    PrecioProducto.precio
+                    Producto.precio
                 )
                 .join(Categoria, Producto.id_categoria == Categoria.id_categoria)
                 .outerjoin(Marca, Producto.id_marca == Marca.id_marca)
                 .outerjoin(Proveedor, Producto.id_proveedor == Proveedor.id_proveedor)
                 .outerjoin(Inventario, Producto.id_producto == Inventario.id_producto)
-                .outerjoin(
-                    PrecioProducto,
-                    (Producto.id_producto == PrecioProducto.id_producto) &
-                    (PrecioProducto.fecha_fin.is_(None))
-                )
                 .filter(Producto.id_producto == pid)
                 .first()
             )
@@ -146,18 +140,12 @@ class ProductService:
         if not proveedor:
             raise HTTPException(status_code=400, detail="Proveedor no encontrado")
         
-        # Crear el producto - id_proveedor ya está incluido en product_data
+        # Crear el producto - agregar el precio al product_data
+        product_data['precio'] = product.precio
         db_product = Producto(**product_data)
         self.db.add(db_product)
         self.db.commit()
         self.db.refresh(db_product)
-
-        # Crear precio inicial
-        precio_producto = PrecioProducto(
-            id_producto=db_product.id_producto,
-            precio=product.precio
-        )
-        self.db.add(precio_producto)
 
         # Crear registro inicial en inventario
         # Buscar una ubicación por defecto (primera ubicación activa)
@@ -184,7 +172,7 @@ class ProductService:
             Proveedor.nombre.label('proveedor_nombre'),
             Inventario.cantidad_actual,
             Inventario.stock_minimo,
-            PrecioProducto.precio
+            Producto.precio
         ).join(
             Categoria, Producto.id_categoria == Categoria.id_categoria
         ).outerjoin(
@@ -193,14 +181,10 @@ class ProductService:
             Proveedor, Producto.id_proveedor == Proveedor.id_proveedor
         ).outerjoin(
             Inventario, Producto.id_producto == Inventario.id_producto
-        ).outerjoin(
-            PrecioProducto,
-            (Producto.id_producto == PrecioProducto.id_producto) &
-            (PrecioProducto.fecha_fin.is_(None))
         ).filter(
             Producto.id_producto == db_product.id_producto
         ).first()
-
+        
         if not result:
             raise HTTPException(status_code=404, detail="Error al crear el producto")
 
@@ -236,16 +220,12 @@ class ProductService:
                 Proveedor.nombre.label('proveedor_nombre'),
                 Inventario.cantidad_actual,
                 Inventario.stock_minimo,
-                PrecioProducto.precio
+                Producto.precio
             )
             .join(Categoria, Producto.id_categoria == Categoria.id_categoria)
             .outerjoin(Marca, Producto.id_marca == Marca.id_marca)
             .outerjoin(Proveedor, Producto.id_proveedor == Proveedor.id_proveedor)
-            .outerjoin(Inventario, Producto.id_producto == Inventario.id_producto)
-            .outerjoin(
-                PrecioProducto,
-                (Producto.id_producto == PrecioProducto.id_producto) &
-                (PrecioProducto.fecha_fin.is_(None))
+            .outerjoin(Inventario, Producto.id_producto == Inventario.id_producto
             )
             .filter(Producto.id_producto == product_id)
             .first()
@@ -300,41 +280,27 @@ class ProductService:
             self.db.query(Producto).filter(Producto.codigo_producto == product_data.codigo_producto).first()):
             raise HTTPException(status_code=400, detail="El código de producto ya existe")
 
-        # Extraer campos que van en otras tablas, manteniendo id_proveedor
+        # Extraer campos que van en otras tablas
         update_data = product_data.model_dump(exclude={'precio_info', 'inventario_info'})
 
         # Si no se proporciona id_proveedor, mantener el existente
         if not update_data.get('id_proveedor'):
             update_data['id_proveedor'] = product.id_proveedor
 
-        # Actualizar campos básicos del producto
+        # Actualizar todos los campos, incluyendo el precio
         for key, value in update_data.items():
             try:
-                setattr(product, key, value)
+                if key == 'precio':
+                    self.db.query(Producto).filter(
+                        Producto.id_producto == product_id
+                    ).update(
+                        {Producto.precio: value},
+                        synchronize_session='fetch'
+                    )
+                else:
+                    setattr(product, key, value)
             except AttributeError:
                 continue
-
-        # Actualizar precio si ha cambiado
-        current_price = (
-            self.db.query(PrecioProducto.precio)
-            .filter(PrecioProducto.id_producto == product_id)
-            .filter(PrecioProducto.fecha_fin.is_(None))
-            .scalar()
-        )
-        
-        if current_price != product_data.precio:
-            # Cerrar precio actual
-            self.db.query(PrecioProducto).filter(
-                PrecioProducto.id_producto == product_id,
-                PrecioProducto.fecha_fin.is_(None)
-            ).update({"fecha_fin": datetime.utcnow()})
-            
-            # Crear nuevo precio
-            nuevo_precio = PrecioProducto(
-                id_producto=product_id,
-                precio=product_data.precio
-            )
-            self.db.add(nuevo_precio)
 
         # Actualizar stock_minimo en el inventario existente
         # Buscar el registro de inventario
