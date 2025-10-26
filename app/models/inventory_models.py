@@ -69,8 +69,9 @@ class Proveedor(Base):
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime(timezone=True), default=datetime.utcnow)
 
-    # Relaciones - Relación one-to-many con Producto
+    # Relaciones - Relación one-to-many con Producto y Movimiento
     productos = relationship("Producto", back_populates="proveedor")
+    movimientos = relationship("Movimiento", back_populates="proveedor")
 
 class Ubicacion(Base):
     __tablename__ = "ubicacion"
@@ -117,13 +118,12 @@ class MotivoMovimiento(Base):
     id_motivo = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(50), nullable=False)
     tipo_movimiento = Column(String(10), nullable=False)
-    tipo_incidencia = Column(String(50))
     activo = Column(Boolean, default=True)
 
     # Check constraint para tipo_movimiento
     __table_args__ = (
         CheckConstraint(
-            tipo_movimiento.in_(['INGRESO', 'EGRESO']),
+            tipo_movimiento.in_(['ENTRADA', 'SALIDA']),
             name='motivo_movimiento_tipo_movimiento_check'
         ),
     )
@@ -167,6 +167,7 @@ class Movimiento(Base):
     tipo_movimiento = Column(String(10), nullable=False)
     id_motivo = Column(Integer, ForeignKey("motivo_movimiento.id_motivo"), nullable=False)
     id_sucursal = Column(Integer, ForeignKey("sucursal.id_sucursal"))
+    id_proveedor = Column(Integer, ForeignKey("proveedor.id_proveedor"))
     numero_documento = Column(String(50))
     observacion = Column(String(500))
     id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=False)
@@ -186,6 +187,7 @@ class Movimiento(Base):
     usuario = relationship("Usuario", back_populates="movimientos_registrados")
     detalles = relationship("MovimientoDetalle", back_populates="movimiento")
     sucursal = relationship("Sucursal", back_populates="movimientos")
+    proveedor = relationship("Proveedor", back_populates="movimientos")
 
 class MovimientoDetalle(Base):
     __tablename__ = "movimiento_detalle"

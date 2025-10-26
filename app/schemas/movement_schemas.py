@@ -9,10 +9,12 @@ class MovementDetailBase(BaseModel):
     cantidad: int = Field(..., gt=0)  # La cantidad debe ser mayor que 0
 
 class MovementCreate(BaseModel):
-    id_motivo: int = Field(1)  # Valor por defecto 1 para Compra
+    id_motivo: int  # El motivo se debe enviar desde el frontend (ejemplo: Compra, Devolución, etc.)
     id_sucursal: int
-    observacion: str = Field(..., description="Formato: 'Fecha: YYYY-MM-DD - Proveedor: NombreProveedor'")
+    id_proveedor: Optional[int] = None  # Opcional, requerido solo para ingresos
+    observacion: str = Field(..., description="Observaciones del movimiento")
     detalles: List[MovementDetailBase]
+    id_usuario: int = Field(..., description="ID del usuario que realiza el movimiento")
 
     @validator('detalles')
     def validate_details(cls, v):
@@ -41,6 +43,7 @@ class MovementResponse(BaseModel):
     nombre_usuario: str
     motivo_nombre: str
     sucursal_nombre: str
+    proveedor_nombre: Optional[str]
     detalles: List[MovementDetailResponse]
 
     class Config:
