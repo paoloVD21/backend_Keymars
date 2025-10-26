@@ -6,7 +6,7 @@ env/
 
 # Archivos de proyecto
 instrucciones.txt
-basededatos.sql
+basededatosNueva.sql
 
 # Archivos de editor
 .vscode/
