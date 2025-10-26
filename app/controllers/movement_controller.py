@@ -20,5 +20,4 @@ class MovementController:
         try:
             return service.create_entry_movement(movement_data)
         except Exception as e:
-            print(f"Error en el controlador: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))

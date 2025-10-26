@@ -67,22 +67,14 @@ async def create_entry_movement(
     - **detalles**: Lista de productos a ingresar con sus cantidades y ubicaciones
     """
     try:
-        print("\n--------- INICIO REGISTRO DE INGRESO ---------")
-        print("Datos recibidos:", movement_data.model_dump())
-        
         # Llamar al controlador directamente con los datos recibidos
         result = await MovementController.create_entry_movement(
             movement_data=movement_data,
             current_user=current_user,
             db=db
         )
-        print("Movimiento creado exitosamente")
         return result
     except HTTPException as e:
-        print(f"Error HTTP en registro de ingreso: {str(e)}")
         raise
     except Exception as e:
-        print(f"Error inesperado en registro de ingreso: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
-    finally:
-        print("--------- FIN REGISTRO DE INGRESO ---------")

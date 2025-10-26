@@ -17,17 +17,7 @@ class MovementService:
         """
         Crea un nuevo movimiento de entrada (ingreso) con sus detalles y actualiza el inventario
         """
-        print("\n--------- VALIDACIÓN DE DATOS EN SERVICIO ---------")
-        
-        # Usar el id_usuario del objeto movement_data
-        print(f"ID Usuario: {movement_data.id_usuario}")
-        print(f"ID Motivo: {movement_data.id_motivo}")
-        print(f"ID Sucursal: {movement_data.id_sucursal}")
-        print(f"ID Proveedor: {movement_data.id_proveedor}")
-        print("Detalles:")
-        for detalle in movement_data.detalles:
-            print(f"  * Producto: {detalle.id_producto}, Ubicación: {detalle.id_ubicacion}, Cantidad: {detalle.cantidad}")
-        
+
         try:
             # Iniciar la transacción
             # Verificar que existe el usuario y está activo
@@ -37,10 +27,7 @@ class MovementService:
             ).first()
             
             if not user:
-                print(f"Error: Usuario {movement_data.id_usuario} no encontrado")
                 raise HTTPException(status_code=400, detail="Usuario no encontrado")
-            
-            print(f"Usuario validado: {user.nombre} {user.apellido}")
 
             # Verificar que existe el motivo y que cumpla las condiciones
             motivo = self.db.query(MotivoMovimiento).filter(
@@ -104,7 +91,6 @@ class MovementService:
             raise
         except Exception as e:
             self.db.rollback()
-            print(f"Error inesperado: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error al crear el movimiento de ingreso: {str(e)}")
 
     def _process_movement_detail(self, detail, db_movement, usuario_id, movement_data):
