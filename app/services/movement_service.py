@@ -267,30 +267,38 @@ class MovementService:
         )
 
         # Crear la lista de detalles primero
-        detalles_lista = [
-            movement_schemas.MovementDetailResponse(
-                id_movimiento_detalle=detalle[0].id_movimiento_detalle,
-                id_producto=detalle[0].inventario.id_producto,
-                id_ubicacion=detalle[0].inventario.id_ubicacion,
-                nombre_producto=detalle[1],
-                codigo_producto=detalle[2],
-                ubicacion_nombre=detalle[3],
-                cantidad=detalle[0].cantidad
+        detalles_lista = []
+        for detalle in detalles:
+            # Obtener el precio del producto
+            producto = self.db.query(Producto).filter(
+                Producto.id_producto == detalle[0].inventario.id_producto
+            ).first()
+            
+            precio_unitario = Decimal(str(producto.precio)) if producto else Decimal('0')
+            cantidad = int(detalle[0].cantidad)  # Convertimos a int ya que la cantidad siempre será entera
+            precio_total = precio_unitario * Decimal(str(cantidad))
+            
+            detalles_lista.append(
+                movement_schemas.MovementDetailResponse(
+                    id_movimiento_detalle=detalle[0].id_movimiento_detalle,
+                    id_producto=detalle[0].inventario.id_producto,
+                    id_ubicacion=detalle[0].inventario.id_ubicacion,
+                    nombre_producto=detalle[1],
+                    codigo_producto=detalle[2],
+                    ubicacion_nombre=detalle[3],
+                    cantidad=cantidad,
+                    precio_unitario=precio_unitario,
+                    precio_total=precio_total
+                )
             )
-            for detalle in detalles
-        ]
 
         # Construir la respuesta
         return movement_schemas.MovementDetailedResponse(
             id_movimiento=movement[0].id_movimiento,
-            fecha_movimiento=movement[0].fecha_movimiento,
             motivo_nombre=movement[2],
             proveedor_nombre=movement[4],
             nombre_usuario=movement[1],
             sucursal_nombre=movement[3],
             detalles=detalles_lista,
-            cantidad_total=sum(d.cantidad for d in detalles_lista),
-            observacion=movement[0].observacion,
-            tipo_movimiento=movement[0].tipo_movimiento,
-            numero_documento=movement[0].numero_documento
+            cantidad_total=sum(d.cantidad for d in detalles_lista)
         )

@@ -100,3 +100,25 @@ async def create_entry_movement(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
+
+@router.get(
+    "/{movement_id}",
+    response_model=movement_schemas.MovementDetailedResponse,
+    summary="Obtener detalles de un movimiento"
+)
+async def get_movement_by_id(
+    movement_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Obtiene los detalles completos de un movimiento específico
+    
+    - **movement_id**: ID del movimiento a consultar
+    """
+    try:
+        return await MovementController.get_movement_by_id(movement_id, db)
+    except HTTPException as e:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")

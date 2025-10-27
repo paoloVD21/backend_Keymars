@@ -37,3 +37,17 @@ class MovementController:
             return service.create_entry_movement(movement_data)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+            
+    @staticmethod
+    async def get_movement_by_id(
+        movement_id: int,
+        db: Session = Depends(get_db)
+    ) -> movement_schemas.MovementDetailedResponse:
+        """
+        Obtiene los detalles completos de un movimiento específico
+        """
+        service = MovementService(db)
+        try:
+            return service.get_movement_by_id(movement_id)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))

@@ -30,6 +30,8 @@ class MovementDetailResponse(BaseModel):
     cantidad: int
     id_producto: int
     id_ubicacion: int
+    precio_unitario: Decimal
+    precio_total: Decimal
 
     class Config:
         from_attributes = True
@@ -52,15 +54,11 @@ class MovementListResponse(BaseModel):
 class MovementDetailedResponse(BaseModel):
     """Respuesta detallada de un movimiento"""
     id_movimiento: int
-    fecha_movimiento: datetime
     motivo_nombre: str
     cantidad_total: int
     proveedor_nombre: Optional[str]
     nombre_usuario: str
     sucursal_nombre: str
-    observacion: Optional[str]
-    tipo_movimiento: str
-    numero_documento: Optional[str]
     detalles: List[MovementDetailResponse]
 
     class Config:
