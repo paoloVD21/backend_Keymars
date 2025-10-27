@@ -5,15 +5,16 @@ from app.models import (
     Inventario, Kardex, Producto, Ubicacion, Usuario, Sucursal, Proveedor
 )
 from app.schemas import movement_schemas
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from sqlalchemy import and_
+from typing import List
 
 class MovementService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_entry_movement(self, movement_data: movement_schemas.MovementCreate) -> movement_schemas.MovementResponse:
+    def create_entry_movement(self, movement_data: movement_schemas.MovementCreate) -> movement_schemas.MovementDetailedResponse:
         """
         Crea un nuevo movimiento de entrada (ingreso) con sus detalles y actualiza el inventario
         """
@@ -172,7 +173,62 @@ class MovementService:
             'fecha_ultima_actualizacion': datetime.utcnow()
         }, synchronize_session='fetch')
 
-    def get_movement_by_id(self, movement_id: int) -> movement_schemas.MovementResponse:
+    def get_movements_by_date(self, date: datetime) -> List[movement_schemas.MovementListResponse]:
+        """
+        Obtiene un resumen de los movimientos realizados en una fecha específica
+        """
+        from sqlalchemy import func
+
+        movements = (
+            self.db.query(
+                Movimiento,
+                Usuario.nombre.concat(' ').concat(Usuario.apellido).label('nombre_usuario'),
+                MotivoMovimiento.nombre.label('motivo_nombre'),
+                Sucursal.nombre.label('sucursal_nombre'),
+                Proveedor.nombre.label('proveedor_nombre')
+            )
+            .join(Usuario, Movimiento.id_usuario == Usuario.id_usuario)
+            .join(MotivoMovimiento, Movimiento.id_motivo == MotivoMovimiento.id_motivo)
+            .join(Sucursal, Movimiento.id_sucursal == Sucursal.id_sucursal)
+            .outerjoin(Proveedor, Movimiento.id_proveedor == Proveedor.id_proveedor)
+            .filter(func.date(Movimiento.fecha_movimiento) == date.date())
+            .order_by(Movimiento.fecha_movimiento.desc())
+            .all()
+        )
+
+        result = []
+        for movement in movements:
+            # Obtener los detalles para cada movimiento
+            detalles = (
+                self.db.query(
+                    MovimientoDetalle,
+                    Producto.nombre.label('nombre_producto'),
+                    Producto.codigo_producto,
+                    Ubicacion.nombre.label('ubicacion_nombre')
+                )
+                .join(Inventario, MovimientoDetalle.id_inventario == Inventario.id_inventario)
+                .join(Producto, Inventario.id_producto == Producto.id_producto)
+                .join(Ubicacion, Inventario.id_ubicacion == Ubicacion.id_ubicacion)
+                .filter(MovimientoDetalle.id_movimiento == movement[0].id_movimiento)
+                .all()
+            )
+
+            # Calcular la cantidad total
+            cantidad_total = sum(detalle[0].cantidad for detalle in detalles)
+
+            # Construir la respuesta resumida para cada movimiento
+            result.append(movement_schemas.MovementListResponse(
+                id_movimiento=movement[0].id_movimiento,
+                motivo_nombre=movement[2],
+                proveedor_nombre=movement[4],
+                nombre_usuario=movement[1],
+                sucursal_nombre=movement[3],
+                cantidad_total=cantidad_total
+            ))
+
+        return result
+
+    def get_movement_by_id(self, movement_id: int) -> movement_schemas.MovementDetailedResponse:
         """
         Obtiene un movimiento por su ID con todos sus detalles
         """
@@ -210,27 +266,31 @@ class MovementService:
             .all()
         )
 
+        # Crear la lista de detalles primero
+        detalles_lista = [
+            movement_schemas.MovementDetailResponse(
+                id_movimiento_detalle=detalle[0].id_movimiento_detalle,
+                id_producto=detalle[0].inventario.id_producto,
+                id_ubicacion=detalle[0].inventario.id_ubicacion,
+                nombre_producto=detalle[1],
+                codigo_producto=detalle[2],
+                ubicacion_nombre=detalle[3],
+                cantidad=detalle[0].cantidad
+            )
+            for detalle in detalles
+        ]
+
         # Construir la respuesta
-        return movement_schemas.MovementResponse(
+        return movement_schemas.MovementDetailedResponse(
             id_movimiento=movement[0].id_movimiento,
-            tipo_movimiento=movement[0].tipo_movimiento,
-            numero_documento=movement[0].numero_documento,
-            observacion=movement[0].observacion,
             fecha_movimiento=movement[0].fecha_movimiento,
-            nombre_usuario=movement[1],
             motivo_nombre=movement[2],
-            sucursal_nombre=movement[3],
             proveedor_nombre=movement[4],
-            detalles=[
-                movement_schemas.MovementDetailResponse(
-                    id_movimiento_detalle=detalle[0].id_movimiento_detalle,
-                    id_producto=detalle[0].inventario.id_producto,  # Acceder a través de la relación
-                    id_ubicacion=detalle[0].inventario.id_ubicacion,  # Acceder a través de la relación
-                    nombre_producto=detalle[1],
-                    codigo_producto=detalle[2],
-                    ubicacion_nombre=detalle[3],
-                    cantidad=detalle[0].cantidad
-                )
-                for detalle in detalles
-            ]
+            nombre_usuario=movement[1],
+            sucursal_nombre=movement[3],
+            detalles=detalles_lista,
+            cantidad_total=sum(d.cantidad for d in detalles_lista),
+            observacion=movement[0].observacion,
+            tipo_movimiento=movement[0].tipo_movimiento,
+            numero_documento=movement[0].numero_documento
         )

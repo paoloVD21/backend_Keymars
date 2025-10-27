@@ -7,6 +7,7 @@ from app.models import Usuario
 from typing import List
 from sqlalchemy.orm import Session
 from app.config.database import get_db
+from datetime import datetime
 
 router = APIRouter(
     prefix="/api/movements",
@@ -47,9 +48,30 @@ async def get_exit_reasons(
         db=db
     )
 
+@router.get(
+    "/historial/{fecha}",
+    response_model=List[movement_schemas.MovementListResponse],
+    summary="Obtener historial de movimientos por fecha"
+)
+async def get_movements_by_date(
+    fecha: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Obtiene todos los movimientos realizados en una fecha específica
+    
+    - **fecha**: La fecha en formato 'YYYY-MM-DD'
+    """
+    try:
+        date = datetime.strptime(fecha, "%Y-%m-%d")
+        return await MovementController.get_movements_by_date(date, db)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+
 @router.post(
     "/registrarIngreso",
-    response_model=movement_schemas.MovementResponse,
+    response_model=movement_schemas.MovementDetailedResponse,
     summary="Registrar ingreso de productos"
 )
 async def create_entry_movement(

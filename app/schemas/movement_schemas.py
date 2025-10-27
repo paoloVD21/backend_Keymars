@@ -34,16 +34,33 @@ class MovementDetailResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class MovementResponse(BaseModel):
+# Configuración común para los modelos de movimiento
+common_config = {"from_attributes": True}
+
+class MovementListResponse(BaseModel):
+    """Respuesta resumida para listar movimientos"""
     id_movimiento: int
+    motivo_nombre: str
+    cantidad_total: int
+    proveedor_nombre: Optional[str]
+    nombre_usuario: str
+    sucursal_nombre: str
+
+    class Config:
+        from_attributes = True
+
+class MovementDetailedResponse(BaseModel):
+    """Respuesta detallada de un movimiento"""
+    id_movimiento: int
+    fecha_movimiento: datetime
+    motivo_nombre: str
+    cantidad_total: int
+    proveedor_nombre: Optional[str]
+    nombre_usuario: str
+    sucursal_nombre: str
+    observacion: Optional[str]
     tipo_movimiento: str
     numero_documento: Optional[str]
-    observacion: Optional[str]
-    fecha_movimiento: datetime
-    nombre_usuario: str
-    motivo_nombre: str
-    sucursal_nombre: str
-    proveedor_nombre: Optional[str]
     detalles: List[MovementDetailResponse]
 
     class Config:
