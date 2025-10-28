@@ -6,20 +6,22 @@ from app.config.database import get_db
 from app.utils.auth import get_current_active_user
 from app.models import Usuario
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 class MovementController:
     @staticmethod
     async def get_movements_by_date(
         date: datetime,
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
+        tipo_movimiento: Optional[str] = None
     ) -> List[movement_schemas.MovementListResponse]:
         """
         Obtiene los movimientos realizados en una fecha específica
+        Si se especifica tipo_movimiento, filtra por INGRESO o EGRESO
         """
         service = MovementService(db)
         try:
-            return service.get_movements_by_date(date)
+            return service.get_movements_by_date(date, tipo_movimiento)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -49,6 +51,9 @@ class MovementController:
         """
         service = MovementService(db)
         try:
+            # Asegurarse de que no se envía proveedor en salidas
+            movement_data.id_proveedor = None
+            
             return service.create_exit_movement(movement_data)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

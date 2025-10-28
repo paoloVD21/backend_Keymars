@@ -49,17 +49,59 @@ async def get_exit_reasons(
     )
 
 @router.get(
-    "/historial/{fecha}",
+    "/historial/entradas/{fecha}",
     response_model=List[movement_schemas.MovementListResponse],
-    summary="Obtener historial de movimientos por fecha"
+    summary="Obtener historial de entradas por fecha"
 )
-async def get_movements_by_date(
+async def get_entry_movements_by_date(
     fecha: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
     """
-    Obtiene todos los movimientos realizados en una fecha específica
+    Obtiene todos los movimientos de entrada realizados en una fecha específica
+    
+    - **fecha**: La fecha en formato 'YYYY-MM-DD'
+    """
+    try:
+        date = datetime.strptime(fecha, "%Y-%m-%d")
+        return await MovementController.get_movements_by_date(date, db, "INGRESO")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+
+@router.get(
+    "/historial/salidas/{fecha}",
+    response_model=List[movement_schemas.MovementListResponse],
+    summary="Obtener historial de salidas por fecha"
+)
+async def get_exit_movements_by_date(
+    fecha: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Obtiene todos los movimientos de salida realizados en una fecha específica
+    
+    - **fecha**: La fecha en formato 'YYYY-MM-DD'
+    """
+    try:
+        date = datetime.strptime(fecha, "%Y-%m-%d")
+        return await MovementController.get_movements_by_date(date, db, "EGRESO")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+
+@router.get(
+    "/historial/{fecha}",
+    response_model=List[movement_schemas.MovementListResponse],
+    summary="Obtener historial completo de movimientos por fecha"
+)
+async def get_all_movements_by_date(
+    fecha: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Obtiene todos los movimientos (entradas y salidas) realizados en una fecha específica
     
     - **fecha**: La fecha en formato 'YYYY-MM-DD'
     """

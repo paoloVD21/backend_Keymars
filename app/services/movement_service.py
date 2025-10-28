@@ -8,7 +8,7 @@ from app.schemas import movement_schemas
 from datetime import datetime, timedelta
 from decimal import Decimal
 from sqlalchemy import and_
-from typing import List
+from typing import List, Optional
 
 class MovementService:
     def __init__(self, db: Session):
@@ -98,14 +98,22 @@ class MovementService:
         """
         Crea un nuevo movimiento de salida (egreso) con sus detalles y actualiza el inventario
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
+            logger.info(f"Iniciando registro de salida en sucursal ID: {movement_data.id_sucursal}")
+            
             # Verificar que existe el usuario y está activo
             user = self.db.query(Usuario).filter(
                 Usuario.id_usuario == movement_data.id_usuario
             ).first()
             
             if not user:
+                logger.error(f"Usuario ID {movement_data.id_usuario} no encontrado")
                 raise HTTPException(status_code=400, detail="Usuario no encontrado")
+            
+            logger.info(f"Usuario verificado: {user.nombre} {user.apellido}")
 
             # Verificar que existe el motivo y que sea de tipo SALIDA
             motivo = self.db.query(MotivoMovimiento).filter(
@@ -116,8 +124,11 @@ class MovementService:
             ).first()
             
             if not motivo:
+                logger.error(f"Motivo ID {movement_data.id_motivo} no válido para salida")
                 raise HTTPException(status_code=400, 
                     detail=f"El motivo con ID {movement_data.id_motivo} no existe o no es un motivo de salida")
+            
+            logger.info(f"Motivo verificado: {motivo.nombre}")
 
             # Verificar que existe la sucursal
             sucursal = self.db.query(Sucursal).filter(
@@ -125,11 +136,17 @@ class MovementService:
             ).first()
             
             if not sucursal:
+                logger.error(f"Sucursal ID {movement_data.id_sucursal} no encontrada")
                 raise HTTPException(status_code=400, detail="Sucursal no encontrada")
+            
+            logger.info(f"Sucursal verificada: {sucursal.nombre}")
 
             # Verificar que NO se proporcione un proveedor para la salida
             if movement_data.id_proveedor is not None:
+                logger.error("Se intentó especificar un proveedor en un movimiento de salida")
                 raise HTTPException(status_code=400, detail="No se debe especificar proveedor para movimientos de salida")
+                
+            logger.info("Validaciones básicas completadas, procesando detalles del movimiento...")
 
             # Crear el movimiento
             db_movement = Movimiento(
@@ -440,11 +457,19 @@ class MovementService:
             logger.error(f"Error durante la búsqueda de productos: {str(e)}")
             raise
 
-    def get_movements_by_date(self, date: datetime) -> List[movement_schemas.MovementListResponse]:
+    def get_movements_by_date(self, date: datetime, tipo_movimiento: Optional[str] = None) -> List[movement_schemas.MovementListResponse]:
         """
-        Obtiene un resumen de los movimientos realizados en una fecha específica
+        Obtiene un resumen de los movimientos realizados en una fecha específica.
+        Si se especifica tipo_movimiento, filtra por INGRESO o EGRESO.
         """
-        from sqlalchemy import func
+        from sqlalchemy import func, and_
+
+        # Construir el filtro base
+        filtros = [func.date(Movimiento.fecha_movimiento) == date.date()]
+        
+        # Agregar filtro de tipo si se especifica
+        if tipo_movimiento:
+            filtros.append(Movimiento.tipo_movimiento == tipo_movimiento)
 
         movements = (
             self.db.query(
@@ -458,7 +483,7 @@ class MovementService:
             .join(MotivoMovimiento, Movimiento.id_motivo == MotivoMovimiento.id_motivo)
             .join(Sucursal, Movimiento.id_sucursal == Sucursal.id_sucursal)
             .outerjoin(Proveedor, Movimiento.id_proveedor == Proveedor.id_proveedor)
-            .filter(func.date(Movimiento.fecha_movimiento) == date.date())
+            .filter(and_(*filtros))
             .order_by(Movimiento.fecha_movimiento.desc())
             .all()
         )
