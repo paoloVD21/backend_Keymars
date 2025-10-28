@@ -101,6 +101,65 @@ async def create_entry_movement(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
+@router.post(
+    "/registrarSalida",
+    response_model=movement_schemas.MovementDetailedResponse,
+    summary="Registrar salida de productos"
+)
+async def create_exit_movement(
+    movement_data: movement_schemas.MovementCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Registra una nueva salida de productos del inventario.
+
+    - **id_motivo**: ID del motivo de salida (seleccionado del frontend)
+    - **id_sucursal**: ID de la sucursal donde se realiza la salida
+    - **id_proveedor**: No requerido para salidas (debe ser null)
+    - **observacion**: Observaciones adicionales del movimiento
+    - **detalles**: Lista de productos a retirar con sus cantidades y ubicaciones
+    """
+    try:
+        result = await MovementController.create_exit_movement(
+            movement_data=movement_data,
+            current_user=current_user,
+            db=db
+        )
+        return result
+    except HTTPException as e:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
+
+@router.get(
+    "/productos/buscar/{id_sucursal}",
+    response_model=List[movement_schemas.ProductoSearchResponse],
+    summary="Buscar productos para movimiento"
+)
+async def search_products_for_movement(
+    id_sucursal: int,
+    buscar: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Busca productos por nombre o código y obtiene su stock en las ubicaciones de la sucursal especificada
+    
+    - **id_sucursal**: ID de la sucursal donde se quiere buscar los productos
+    - **buscar**: Término de búsqueda (parte del nombre o código del producto)
+
+    Retorna una lista de productos que coinciden con la búsqueda, incluyendo:
+    - Información básica del producto (ID, nombre, código, precio)
+    - Lista de ubicaciones con su stock actual
+    """
+    try:
+        return await MovementController.search_products_for_movement(id_sucursal, buscar, db)
+    except HTTPException as e:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
+
 @router.get(
     "/{movement_id}",
     response_model=movement_schemas.MovementDetailedResponse,

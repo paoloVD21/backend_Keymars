@@ -51,6 +51,26 @@ class MovementListResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class StockUbicacion(BaseModel):
+    """Información de stock en una ubicación específica"""
+    id_ubicacion: int
+    nombre_ubicacion: str
+    stock_actual: float
+
+    class Config:
+        from_attributes = True
+
+class ProductoSearchResponse(BaseModel):
+    """Respuesta para búsqueda de productos con su stock en diferentes ubicaciones"""
+    id_producto: int
+    nombre_producto: str
+    codigo_producto: str
+    precio: float
+    stock_ubicaciones: List[StockUbicacion]
+
+    class Config:
+        from_attributes = True
+
 class MovementDetailedResponse(BaseModel):
     """Respuesta detallada de un movimiento"""
     id_movimiento: int

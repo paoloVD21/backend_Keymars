@@ -39,6 +39,36 @@ class MovementController:
             raise HTTPException(status_code=500, detail=str(e))
             
     @staticmethod
+    async def create_exit_movement(
+        movement_data: movement_schemas.MovementCreate,
+        current_user: dict,
+        db: Session = Depends(get_db)
+    ) -> movement_schemas.MovementDetailedResponse:
+        """
+        Crea un nuevo movimiento de salida (egreso)
+        """
+        service = MovementService(db)
+        try:
+            return service.create_exit_movement(movement_data)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    async def search_products_for_movement(
+        id_sucursal: int,
+        buscar: str,
+        db: Session = Depends(get_db)
+    ) -> List[movement_schemas.ProductoSearchResponse]:
+        """
+        Busca productos por nombre o código para un movimiento
+        """
+        service = MovementService(db)
+        try:
+            return service.search_products_for_movement(id_sucursal, buscar)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
     async def get_movement_by_id(
         movement_id: int,
         db: Session = Depends(get_db)
