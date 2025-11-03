@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from app.models.auth_models import Usuario
     from app.models.inventory_models import Ubicacion, Movimiento
 
+
 # Tabla intermedia para la relación many-to-many entre Rol y Permiso
 rol_permiso = Table(
     "rol_permiso",
@@ -40,6 +41,7 @@ class Sucursal(Base):
     usuarios = relationship("Usuario", back_populates="sucursal")
     ubicaciones = relationship("Ubicacion", back_populates="sucursal")
     movimientos = relationship("Movimiento", back_populates="sucursal")
+
 
 class Rol(Base):
     __tablename__ = "rol"

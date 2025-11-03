@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.models.auth_models import Usuario
     from app.models.organization_models import Sucursal
+    from app.models.alert_models import Alert
+
 
 # Ya no es necesaria la tabla intermedia producto_proveedor ya que ahora es una relación one-to-many
 class Categoria(Base):
@@ -58,6 +60,7 @@ class Producto(Base):
     proveedor = relationship("Proveedor", back_populates="productos")  # Relación directa one-to-many
     inventarios = relationship("Inventario", back_populates="producto")
 
+
 class Proveedor(Base):
     __tablename__ = "proveedor"
 
@@ -72,6 +75,7 @@ class Proveedor(Base):
     # Relaciones - Relación one-to-many con Producto y Movimiento
     productos = relationship("Producto", back_populates="proveedor")
     movimientos = relationship("Movimiento", back_populates="proveedor")
+
 
 class Ubicacion(Base):
     __tablename__ = "ubicacion"
@@ -110,7 +114,7 @@ class Inventario(Base):
     ubicacion = relationship("Ubicacion", back_populates="inventarios")
     producto = relationship("Producto", back_populates="inventarios")
     kardex = relationship("Kardex", back_populates="inventario")
-    alertas = relationship("AlertaStock", back_populates="inventario")
+    alertas = relationship("Alert", back_populates="inventario")
 
 class MotivoMovimiento(Base):
     __tablename__ = "motivo_movimiento"
@@ -201,23 +205,3 @@ class MovimientoDetalle(Base):
     movimiento = relationship("Movimiento", back_populates="detalles")
     inventario = relationship("Inventario")
 
-class AlertaStock(Base):
-    __tablename__ = "alerta_stock"
-
-    id_alerta = Column(Integer, primary_key=True, index=True)
-    id_inventario = Column(Integer, ForeignKey("inventario.id_inventario"), nullable=False)
-    fecha_alerta = Column(DateTime, default=datetime.utcnow, nullable=False)
-    cantidad_actual = Column(Numeric(10, 2), nullable=False)
-    estado = Column(String(20), nullable=False)
-    observacion = Column(Text)
-
-    # Check constraint para estado
-    __table_args__ = (
-        CheckConstraint(
-            estado.in_(['creado', 'stock_minimo', 'stock_bajo']),
-            name='chk_alerta_stock_estado'
-        ),
-    )
-
-    # Relaciones
-    inventario = relationship("Inventario", back_populates="alertas")

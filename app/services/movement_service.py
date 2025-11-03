@@ -98,22 +98,14 @@ class MovementService:
         """
         Crea un nuevo movimiento de salida (egreso) con sus detalles y actualiza el inventario
         """
-        import logging
-        logger = logging.getLogger(__name__)
-        
         try:
-            logger.info(f"Iniciando registro de salida en sucursal ID: {movement_data.id_sucursal}")
-            
             # Verificar que existe el usuario y está activo
             user = self.db.query(Usuario).filter(
                 Usuario.id_usuario == movement_data.id_usuario
             ).first()
             
             if not user:
-                logger.error(f"Usuario ID {movement_data.id_usuario} no encontrado")
                 raise HTTPException(status_code=400, detail="Usuario no encontrado")
-            
-            logger.info(f"Usuario verificado: {user.nombre} {user.apellido}")
 
             # Verificar que existe el motivo y que sea de tipo SALIDA
             motivo = self.db.query(MotivoMovimiento).filter(
@@ -124,11 +116,8 @@ class MovementService:
             ).first()
             
             if not motivo:
-                logger.error(f"Motivo ID {movement_data.id_motivo} no válido para salida")
                 raise HTTPException(status_code=400, 
                     detail=f"El motivo con ID {movement_data.id_motivo} no existe o no es un motivo de salida")
-            
-            logger.info(f"Motivo verificado: {motivo.nombre}")
 
             # Verificar que existe la sucursal
             sucursal = self.db.query(Sucursal).filter(
@@ -136,17 +125,11 @@ class MovementService:
             ).first()
             
             if not sucursal:
-                logger.error(f"Sucursal ID {movement_data.id_sucursal} no encontrada")
                 raise HTTPException(status_code=400, detail="Sucursal no encontrada")
-            
-            logger.info(f"Sucursal verificada: {sucursal.nombre}")
 
             # Verificar que NO se proporcione un proveedor para la salida
             if movement_data.id_proveedor is not None:
-                logger.error("Se intentó especificar un proveedor en un movimiento de salida")
                 raise HTTPException(status_code=400, detail="No se debe especificar proveedor para movimientos de salida")
-                
-            logger.info("Validaciones básicas completadas, procesando detalles del movimiento...")
 
             # Crear el movimiento
             db_movement = Movimiento(
@@ -349,9 +332,6 @@ class MovementService:
         from sqlalchemy import or_, func
         logger = logging.getLogger(__name__)
 
-        logger.info(f"Iniciando búsqueda de productos en sucursal ID: {id_sucursal}")
-        logger.info(f"Término de búsqueda: '{buscar}'")
-
         try:
             # Verificar que la sucursal existe y está activa
             sucursal = self.db.query(Sucursal).filter(
@@ -362,13 +342,7 @@ class MovementService:
             ).first()
             
             if not sucursal:
-                logger.error(f"Sucursal ID {id_sucursal} no encontrada o inactiva")
                 raise HTTPException(status_code=404, detail="Sucursal no encontrada o inactiva")
-            
-            logger.info(f"Búsqueda en sucursal: {sucursal.nombre}")
-
-            # Buscar productos que coincidan con el término de búsqueda
-            logger.debug("Ejecutando consulta de búsqueda de productos...")
             productos = (
                 self.db.query(
                     Producto.id_producto,
@@ -403,20 +377,14 @@ class MovementService:
                 .all()
             )
 
-            total_productos = len(productos)
-            logger.info(f"Se encontraron {total_productos} resultados que coinciden con la búsqueda")
-            
-            if total_productos == 0:
-                logger.info(f"No se encontraron productos que coincidan con el término '{buscar}'")
+            if len(productos) == 0:
                 return []
 
             # Agrupar los resultados por producto
-            logger.debug("Agrupando resultados por producto...")
             productos_agrupados = {}
             for producto in productos:
                 id_producto = producto[0]
                 if id_producto not in productos_agrupados:
-                    logger.debug(f"Procesando producto: {producto[1]} (ID: {id_producto}, Código: {producto[2]})")
                     productos_agrupados[id_producto] = {
                         'id_producto': id_producto,
                         'nombre_producto': producto[1],
@@ -426,7 +394,6 @@ class MovementService:
                     }
 
                 stock_actual = float(producto[4] if producto[4] is not None else 0)
-                logger.debug(f"Stock en ubicación '{producto[6]}': {stock_actual}")
                 productos_agrupados[id_producto]['stock_ubicaciones'].append({
                     'id_ubicacion': producto[5],
                     'nombre_ubicacion': producto[6],
@@ -434,24 +401,10 @@ class MovementService:
                 })
 
             # Convertir el diccionario a una lista de respuestas
-            logger.debug("Generando respuesta final...")
-            resultados = [
+            return [
                 movement_schemas.ProductoSearchResponse(**producto_info)
                 for producto_info in productos_agrupados.values()
             ]
-
-            num_productos_unicos = len(resultados)
-            logger.info(f"Procesamiento completado. Productos únicos encontrados: {num_productos_unicos}")
-            logger.info("Desglose de productos encontrados:")
-            for resultado in resultados:
-                total_stock = sum(ub.stock_actual for ub in resultado.stock_ubicaciones)
-                logger.info(f"- {resultado.nombre_producto} (Código: {resultado.codigo_producto})")
-                logger.info(f"  Precio: {resultado.precio}, Stock total: {total_stock}")
-                logger.info(f"  Ubicaciones encontradas: {len(resultado.stock_ubicaciones)}")
-                for ubicacion in resultado.stock_ubicaciones:
-                    logger.info(f"    * {ubicacion.nombre_ubicacion}: {ubicacion.stock_actual} unidades")
-
-            return resultados
 
         except Exception as e:
             logger.error(f"Error durante la búsqueda de productos: {str(e)}")
