@@ -328,9 +328,7 @@ class MovementService:
         """
         Busca productos por nombre o código y obtiene su stock en la sucursal especificada
         """
-        import logging
         from sqlalchemy import or_, func
-        logger = logging.getLogger(__name__)
 
         try:
             # Verificar que la sucursal existe y está activa
@@ -407,8 +405,7 @@ class MovementService:
             ]
 
         except Exception as e:
-            logger.error(f"Error durante la búsqueda de productos: {str(e)}")
-            raise
+            raise HTTPException(status_code=500, detail=f"Error durante la búsqueda de productos: {str(e)}")
 
     def get_movements_by_date(self, date: datetime, tipo_movimiento: Optional[str] = None) -> List[movement_schemas.MovementListResponse]:
         """
