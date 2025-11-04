@@ -324,6 +324,83 @@ class MovementService:
             'fecha_ultima_actualizacion': datetime.utcnow()
         }, synchronize_session='fetch')
 
+    def search_products_for_entry(self, id_sucursal: int, buscar: str) -> List[movement_schemas.ProductoEntradaResponse]:
+        """
+        Busca productos activos por nombre para registrar entradas en la sucursal especificada.
+        Muestra todos los productos que coincidan con la búsqueda y las ubicaciones disponibles en la sucursal.
+        """
+        from sqlalchemy import or_, func
+
+        try:
+            # Verificar que la sucursal existe y está activa
+            sucursal = self.db.query(Sucursal).filter(
+                and_(
+                    Sucursal.id_sucursal == id_sucursal,
+                    Sucursal.activo == True
+                )
+            ).first()
+            
+            if not sucursal:
+                raise HTTPException(status_code=404, detail="Sucursal no encontrada o inactiva")
+
+            # Obtener productos y ubicaciones
+            productos = (
+                self.db.query(
+                    Producto.id_producto,
+                    Producto.nombre,
+                    Producto.codigo_producto,
+                    Producto.precio
+                )
+                .filter(
+                    and_(
+                        Producto.activo == True,
+                        func.upper(Producto.nombre).contains(func.upper(buscar))
+                    )
+                )
+                .all()
+            )
+
+            if len(productos) == 0:
+                return []
+
+            # Obtener todas las ubicaciones activas de la sucursal
+            ubicaciones = (
+                self.db.query(
+                    Ubicacion.id_ubicacion,
+                    Ubicacion.nombre
+                )
+                .filter(
+                    and_(
+                        Ubicacion.id_sucursal == id_sucursal,
+                        Ubicacion.activo == True
+                    )
+                )
+                .all()
+            )
+
+            # Preparar la respuesta
+            resultado = []
+            for producto in productos:
+                producto_response = {
+                    'id_producto': producto[0],
+                    'nombre_producto': producto[1],
+                    'codigo_producto': producto[2],
+                    'precio': float(producto[3] if producto[3] is not None else 0),
+                    'ubicaciones': [
+                        {
+                            'id_ubicacion': ub[0],
+                            'nombre_ubicacion': ub[1]
+                        }
+                        for ub in ubicaciones
+                    ]
+                }
+                resultado.append(movement_schemas.ProductoEntradaResponse(**producto_response))
+
+            return resultado
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error durante la búsqueda de productos para entrada: {str(e)}")
+
     def search_products_for_movement(self, id_sucursal: int, buscar: str) -> List[movement_schemas.ProductoSearchResponse]:
         """
         Busca productos por nombre o código y obtiene su stock en la sucursal especificada
@@ -366,10 +443,7 @@ class MovementService:
                 .filter(
                     and_(
                         Producto.activo == True,
-                        or_(
-                            func.lower(Producto.nombre).contains(func.lower(buscar)),
-                            func.lower(Producto.codigo_producto).contains(func.lower(buscar))
-                        )
+                        func.upper(Producto.nombre).contains(func.upper(buscar))
                     )
                 )
                 .all()

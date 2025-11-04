@@ -71,6 +71,25 @@ class ProductoSearchResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ProductoEntradaUbicacion(BaseModel):
+    """Información de una ubicación para entrada de productos"""
+    id_ubicacion: int
+    nombre_ubicacion: str
+
+    class Config:
+        from_attributes = True
+
+class ProductoEntradaResponse(BaseModel):
+    """Respuesta para búsqueda de productos para entrada"""
+    id_producto: int
+    nombre_producto: str
+    codigo_producto: str
+    precio: float
+    ubicaciones: List[ProductoEntradaUbicacion]
+
+    class Config:
+        from_attributes = True
+
 class MovementDetailedResponse(BaseModel):
     """Respuesta detallada de un movimiento"""
     id_movimiento: int

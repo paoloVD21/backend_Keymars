@@ -175,6 +175,34 @@ async def create_exit_movement(
         raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
 @router.get(
+    "/productos/entrada/{id_sucursal}",
+    response_model=List[movement_schemas.ProductoEntradaResponse],
+    summary="Buscar productos para registro de entrada"
+)
+async def search_products_for_entry(
+    id_sucursal: int,
+    buscar: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Busca productos por nombre para registrar entradas en la sucursal especificada
+    
+    - **id_sucursal**: ID de la sucursal donde se quiere registrar la entrada
+    - **buscar**: Término de búsqueda (parte del nombre del producto)
+
+    Retorna una lista de productos que coinciden con la búsqueda, incluyendo:
+    - Información básica del producto (ID, nombre, código, precio)
+    - Lista de ubicaciones disponibles en la sucursal
+    """
+    try:
+        return await MovementController.search_products_for_entry(id_sucursal, buscar, db)
+    except HTTPException as e:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
+
+@router.get(
     "/productos/buscar/{id_sucursal}",
     response_model=List[movement_schemas.ProductoSearchResponse],
     summary="Buscar productos para movimiento"

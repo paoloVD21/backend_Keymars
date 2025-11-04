@@ -59,6 +59,21 @@ class MovementController:
             raise HTTPException(status_code=500, detail=str(e))
 
     @staticmethod
+    async def search_products_for_entry(
+        id_sucursal: int,
+        buscar: str,
+        db: Session = Depends(get_db)
+    ) -> List[movement_schemas.ProductoEntradaResponse]:
+        """
+        Busca productos por nombre para registrar entradas
+        """
+        service = MovementService(db)
+        try:
+            return service.search_products_for_entry(id_sucursal, buscar)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
     async def search_products_for_movement(
         id_sucursal: int,
         buscar: str,
