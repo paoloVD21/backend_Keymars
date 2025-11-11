@@ -1,12 +1,9 @@
 import logging
-import uvicorn
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.security import OAuth2PasswordBearer
 from app.routes import auth, user, organization, supplier, product, category, brand, movement, location, reports, alerts, dashboard
 from app.config.cors import setup_cors
 from app.config.settings import Settings
-from app.models import auth_models, organization_models, inventory_models, alert_models  # Importar todos los modelos
-from app.utils.auth import verify_token
 
 # Cargar configuración
 settings = Settings()
